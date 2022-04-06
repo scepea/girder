@@ -1,2 +1,2 @@
 pub mod shadowing;
-pub mod moving;
+pub mod assignment;
