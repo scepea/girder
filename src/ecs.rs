@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, any::{Any,TypeId}, hash::Hash};
 
 use ecs_derive::Component;
 
-pub trait Component {
+pub trait Component: 'static{
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -35,11 +35,15 @@ impl Entity {
         Entity{components: HashMap::new()}
     }
     
-    fn add_component<T: 'static + Component>(self: &mut Self, component: T) {
+    fn add_component<T: Component>(&mut self, component: T) {
         self.components.insert(TypeId::of::<T>(), Box::new(component));
     }
 
-    fn get_component<T: 'static + Component>(self: &Self) -> Option<&T>{
+    fn remove_component<T: Component>(&mut self) {
+        self.components.remove(&TypeId::of::<T>());
+    }
+
+    fn get_component<T: Component>(&self) -> Option<&T>{
         match self.components.get(&TypeId::of::<T>()) {
             Some(x) => x.as_any().downcast_ref::<T>(),
             None => None
@@ -65,5 +69,14 @@ pub fn example() {
 
     for entity in entities {
         println!("{}", entity.get_component::<NameComponent>().expect("").name);
+    }
+
+    let mut entity = Entity::new();
+    entity.add_component(NameComponent{name: String::from("Chaff")});
+    println!("We made an entity with the name: {}", entity.get_component::<NameComponent>().expect("").name);
+    entity.remove_component::<NameComponent>();
+    match entity.get_component::<NameComponent>() {
+        Some(_) => panic!("The entity shouldn't have a name component anymore!"),
+        None => println!("Now the entity is now nameless, as expected.")
     }
 }
