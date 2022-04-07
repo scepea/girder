@@ -18,8 +18,8 @@ fn impl_component(ast: &syn::DeriveInput) -> TokenStream {
     let name = &ast.ident;
     let gen = quote! {
         impl Component for #name {
-            fn id(self: &Self) -> u64 {
-                24601
+            fn as_any(&self) -> &dyn Any {
+                self
             }
         }
     };

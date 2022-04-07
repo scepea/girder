@@ -1,13 +1,13 @@
-use std::{collections::{HashMap}, any::{TypeId}};
+use std::{collections::{HashMap, HashSet}, any::{Any,TypeId}, hash::Hash};
 
 use ecs_derive::Component;
 
-pub trait Component{
-    fn id(self: &Self) -> u64;
+pub trait Component {
+    fn as_any(&self) -> &dyn Any;
 }
 
 #[derive(Component)]
-struct DemoComponent{
+struct NameComponent{
     name: String
 }
 
@@ -25,9 +25,14 @@ impl Entity {
         self.components.insert(TypeId::of::<T>(), Box::new(component));
     }
 
+    fn get_component<T: 'static + Component>(self: &Self) -> Option<&T>{
+        self.components.get(&TypeId::of::<T>()).expect("msg").as_any().downcast_ref::<T>()
+    }
+
 }
 
 pub fn example() {
-    let mut e = Entity::new();
-    e.add_component(DemoComponent{name: String::from("Mr Demo")});
+    let mut entity = Entity::new();
+    entity.add_component(NameComponent{name: String::from("Primus")});
+    println!("{}", entity.get_component::<NameComponent>().expect("").name);
 }
