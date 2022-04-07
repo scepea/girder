@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, any::{Any,TypeId}, hash::Hash, sync::atomic::{AtomicUsize, Ordering}};
+use std::{collections::{HashMap, HashSet}, any::{Any,TypeId}, hash::Hash};
 
 use ecs_derive::Component;
 
@@ -12,13 +12,12 @@ struct NameComponent{
 }
 
 struct Entity {
-    id: usize,
     components: HashMap<TypeId, Box<dyn Component>>
 }
 
 impl PartialEq for Entity {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        (std::ptr::addr_of!(*self) as usize) == (std::ptr::addr_of!(*other) as usize)
     }
 }
 
@@ -26,17 +25,14 @@ impl Eq for Entity {}
 
 impl Hash for Entity {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
+        (std::ptr::addr_of!(self) as usize).hash(state)
     }
 }
 
 impl Entity {
 
     fn new() -> Entity {
-        static COUNTER:AtomicUsize = AtomicUsize::new(1);
-        COUNTER.fetch_add(1, Ordering::Relaxed);
-
-        Entity{id: COUNTER.fetch_add(1, Ordering::Relaxed), components: HashMap::new()}
+        Entity{components: HashMap::new()}
     }
     
     fn add_component<T: 'static + Component>(self: &mut Self, component: T) {
@@ -44,7 +40,10 @@ impl Entity {
     }
 
     fn get_component<T: 'static + Component>(self: &Self) -> Option<&T>{
-        self.components.get(&TypeId::of::<T>()).expect("msg").as_any().downcast_ref::<T>()
+        match self.components.get(&TypeId::of::<T>()) {
+            Some(x) => x.as_any().downcast_ref::<T>(),
+            None => None
+        }
     }
 
 }
@@ -67,5 +66,4 @@ pub fn example() {
     for entity in entities {
         println!("{}", entity.get_component::<NameComponent>().expect("").name);
     }
-
 }
