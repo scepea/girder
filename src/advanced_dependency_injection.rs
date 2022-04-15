@@ -1,21 +1,23 @@
-pub fn injector() -> String{
-	implementation(another_module::hello_dependency, another_module::world_dependency)
+pub fn injector(echo: String) -> String{
+	implementation(echo, another_module::hello_dependency, another_module::echo_dependency)
 }
 
-fn implementation(first_dependency: fn() -> String, second_dependency: fn() -> String) -> String{
+fn implementation(echo: String, first_dependency: fn() -> String, second_dependency: fn(String) -> String) -> String{
 	let mut result = String::from("");
     result.push_str(&first_dependency());
     result.push_str(", ");
-    result.push_str(&second_dependency());
+    result.push_str(&second_dependency(echo));
     result.push_str("!");
     result
 }
 
 #[test]
 fn unit_test() {
+    let echo = String::from("Test");
     let result: String = implementation(
+        echo,
         || -> String {String::from("Unit")}, 
-        || -> String {String::from("Test")}
+        |x| -> String {x}
     );
     assert_eq!("Unit, Test!", result);
 }
@@ -25,7 +27,7 @@ mod another_module {
 
     #[test]
     fn integration_test() {
-        let result: String = injector();
+        let result: String = injector(String::from("World"));
         assert_eq!("Hello, World!", result);
     }
 
@@ -33,8 +35,8 @@ mod another_module {
         String::from("Hello")
     }
 
-    pub fn world_dependency() -> String {
-        String::from("World")
+    pub fn echo_dependency(echo: String) -> String {
+        echo
     }
 
 }
