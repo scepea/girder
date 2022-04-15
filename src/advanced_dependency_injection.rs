@@ -11,6 +11,7 @@ fn implementation(echo: String, first_dependency: fn() -> String, second_depende
     result
 }
 
+#[cfg(test)]
 #[test]
 fn unit_test() {
     let echo = String::from("Test");
@@ -25,6 +26,7 @@ fn unit_test() {
 mod another_module {
     use crate::advanced_dependency_injection::injector;
 
+    #[cfg(test)]
     #[test]
     fn integration_test() {
         let result: String = injector(String::from("World"));
