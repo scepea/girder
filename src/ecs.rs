@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, HashSet}, any::{Any,TypeId}, hash::Hash};
+use std::{collections::{HashMap, HashSet}, any::{Any,TypeId}, hash::Hash, rc::Rc, sync::atomic::{AtomicUsize, Ordering}};
 
 use ecs_derive::Component;
 
@@ -12,12 +12,13 @@ struct NameComponent{
 }
 
 struct Entity {
+    id: usize,
     components: HashMap<TypeId, Box<dyn Component>>
 }
 
 impl PartialEq for Entity {
     fn eq(&self, other: &Self) -> bool {
-        (std::ptr::addr_of!(*self) as usize) == (std::ptr::addr_of!(*other) as usize)
+        self.id == other.id
     }
 }
 
@@ -25,14 +26,15 @@ impl Eq for Entity {}
 
 impl Hash for Entity {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (std::ptr::addr_of!(self) as usize).hash(state)
+        self.id.hash(state)
     }
 }
 
 impl Entity {
 
     fn new() -> Entity {
-        Entity{components: HashMap::new()}
+        static COUNTER:AtomicUsize = AtomicUsize::new(1);
+        Entity{id: COUNTER.fetch_add(1, Ordering::Relaxed), components: HashMap::new()}
     }
     
     fn add_component<T: Component>(&mut self, component: T) {
@@ -60,17 +62,17 @@ impl Entity {
 }
 
 struct World {
-    entities: HashSet<Entity>
+    entities: HashMap<usize, Entity>
 }
 
 impl World {
     pub fn new() -> World{
-        World{entities: HashSet::new()}
+        World{entities: HashMap::new()}
     }
 
     pub fn query(&self, query: Query) -> HashSet<&Entity> {
         let mut result: HashSet<&Entity> = HashSet::new();
-        for entity in &self.entities {
+        for (id, entity) in &self.entities {
             if query.include.iter().all(|k| entity.components.contains_key(k)) {
                 result.insert(entity);
             }
@@ -78,12 +80,23 @@ impl World {
         result
     }
 
-    pub fn add_entity(&mut self, entity: Entity) {
-        self.entities.insert(entity);
+    pub fn new_entity(&mut self) -> usize{
+        let entity = Entity::new();
+        let id = entity.id;
+        self.entities.insert(id, entity);
+        id
     }
 
-    pub fn remove_entity(&mut self, entity: &Entity) {
+    pub fn remove_entity(&mut self, entity: &usize) {
         self.entities.remove(entity);
+    }
+
+    pub fn get_entity_mut(&mut self, id: &usize) -> Option<&mut Entity>{
+        self.entities.get_mut(id)
+    }
+
+    pub fn get_entity(&self, id: &usize) -> Option<&Entity> {
+        self.entities.get(id)
     }
 }
 
@@ -102,40 +115,9 @@ impl Query {
     }
 }
 
-
-
-pub fn example() {
-    let mut entities: HashSet<Entity> = HashSet::new();
-
-    let mut entity1 = Entity::new();
-    entity1.add_component(NameComponent{name: String::from("Primus")});
-    entities.insert(entity1);
-
-    let mut entity2 = Entity::new();
-    entity2.add_component(NameComponent{name: String::from("Secundus")});
-    entities.insert(entity2);
-
-    let mut entity3 = Entity::new();
-    entity3.add_component(NameComponent{name: String::from("Tertius ")});
-    entities.insert(entity3);
-
-    for entity in entities {
-        println!("{}", entity.get_component::<NameComponent>().expect("").name);
-    }
-
-    let mut entity = Entity::new();
-    entity.add_component(NameComponent{name: String::from("Chaff")});
-    println!("We made an entity with the name: {}", entity.get_component::<NameComponent>().expect("").name);
-    entity.remove_component::<NameComponent>();
-    match entity.get_component::<NameComponent>() {
-        Some(_) => panic!("The entity shouldn't have a name component anymore!"),
-        None => println!("Now the entity is now nameless, as expected.")
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use super::{World, Component, Entity, Query};
+    use super::{World, Component, Query};
     use std::any::Any;
 
     #[derive(Component)]
@@ -152,24 +134,18 @@ mod test {
     fn test_single_result(){
         // Given
         let mut world = World::new();
-        let mut e1 = Entity::new();
-        let mut e2 = Entity::new();
 
-        let sc1 = StringComponent{name: String::from("First Entity")};
-        let sc2 = StringComponent{name: String::from("Second Entity")};
-
-        let ic = IntComponent{number: 1138};
-
-        let query = Query::new().with::<StringComponent>().with::<IntComponent>();
+        let first_entity_id = world.new_entity();
+        let first_entity = world.get_entity_mut(&first_entity_id).unwrap();
+        first_entity.add_component(StringComponent{name: String::from("First Entity")});
+        
+        let second_entity_id = world.new_entity();
+        let second_entity = world.get_entity_mut(&second_entity_id).unwrap();
+        second_entity.add_component(StringComponent{name: String::from("Second Entity")});
+        second_entity.add_component(IntComponent{number: 1138});
+        
         // When
-        e1.add_component(sc1);
-        e2.add_component(sc2);
-        e2.add_component(ic);
-
-        world.add_entity(e1);
-        world.add_entity(e2);
-
-        let actual = world.query(query);
+        let actual = world.query(Query::new().with::<StringComponent>().with::<IntComponent>());
         
         // Then
         assert_eq!(1, actual.len());
@@ -183,24 +159,18 @@ mod test {
     fn test_multiple_result(){
         // Given
         let mut world = World::new();
-        let mut e1 = Entity::new();
-        let mut e2 = Entity::new();
 
-        let sc1 = StringComponent{name: String::from("First Entity")};
-        let sc2 = StringComponent{name: String::from("Second Entity")};
-
-        let ic = IntComponent{number: 1138};
-
-        let query = Query::new().with::<StringComponent>();
+        let first_entity_id = world.new_entity();
+        let first_entity = world.get_entity_mut(&first_entity_id).unwrap();
+        first_entity.add_component(StringComponent{name: String::from("First Entity")});
+        
+        let second_entity_id = world.new_entity();
+        let second_entity = world.get_entity_mut(&second_entity_id).unwrap();
+        second_entity.add_component(StringComponent{name: String::from("Second Entity")});
+        second_entity.add_component(IntComponent{number: 1138});                        
+        
         // When
-        e1.add_component(sc1);
-        e2.add_component(sc2);
-        e2.add_component(ic);
-
-        world.add_entity(e1);
-        world.add_entity(e2);
-
-        let actual = world.query(query);
+        let actual = world.query(Query::new().with::<StringComponent>());
         
         // Then
         assert_eq!(2, actual.len());
