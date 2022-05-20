@@ -21,6 +21,10 @@ fn impl_component(ast: &syn::DeriveInput) -> TokenStream {
             fn as_any(&self) -> &dyn Any {
                 self
             }
+
+            fn as_any_mut(&mut self) -> &mut dyn Any {
+                self
+            }
         }
     };
     gen.into()

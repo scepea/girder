@@ -2,6 +2,8 @@ use std::{collections::{HashMap, HashSet}, any::{Any,TypeId}, hash::Hash, sync::
 
 pub trait Component: 'static{
     fn as_any(&self) -> &dyn Any;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -55,6 +57,23 @@ impl World {
                 None => None
             },
             None => None
+        }
+    }
+
+    pub fn get_component_mut<T: Component>(&mut self, entity: Entity) -> Option<&mut T>{
+        match self.components.get_mut(&TypeId::of::<T>()) {
+            Some(x) => match x.get_mut(&entity) {
+                Some (x) => x.as_any_mut().downcast_mut::<T>(),
+                None => None
+            },
+            None => None
+        }
+    }
+
+    pub fn remove_component<T: Component>(&mut self, entity: Entity) {
+        let x = self.components.get_mut(&TypeId::of::<T>());
+        if x.is_some(){
+            x.unwrap().remove(&entity);
         }
     }
 
