@@ -45,6 +45,9 @@ impl World {
     }
 
     pub fn remove_entity(&mut self, entity: Entity) {
+        for (_, x) in &mut self.components {
+            x.remove(&entity);
+        }
         self.entities.remove(&entity);
     }
 
@@ -80,7 +83,11 @@ impl World {
     }
 
     pub fn remove_component<T: Component>(&mut self, entity: Entity) {
-        let x = self.components.get_mut(&TypeId::of::<T>());
+        self.remove_component_by_typeId(entity, &TypeId::of::<T>());
+    }
+
+    fn remove_component_by_typeId(&mut self, entity: Entity, component_type: &TypeId) {
+        let x = self.components.get_mut(component_type);
         if x.is_some() {
             x.unwrap().remove(&entity);
         }
@@ -274,5 +281,28 @@ mod test {
     
             // Then
             assert_eq!(None, actual);
+    }
+
+    #[test]
+    fn test_delete_entity() {
+            // Given
+            let mut world = World::new();
+
+            let positive_entity = world.new_entity();
+            world.add_component(positive_entity, IdComponent{number: 1});
+
+            let negative_entity = world.new_entity();
+            let expected_id = 2;
+            world.add_component(negative_entity, IdComponent{number: expected_id});
+    
+            // When
+            world.remove_entity(positive_entity);
+            let positive_actual = world.get_component::<IdComponent>(positive_entity);
+            let negative_actual = world.get_component::<IdComponent>(negative_entity);
+
+            // Then
+            assert_eq!(world.entities.len(), 1);
+            assert_eq!(None, positive_actual);
+            assert_eq!(expected_id, negative_actual.unwrap().number);
     }
 }
