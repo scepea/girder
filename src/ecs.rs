@@ -6,7 +6,7 @@ pub trait Component: 'static{
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 struct Entity {
     id: usize
 }
@@ -87,6 +87,8 @@ impl World {
             if components_of_type.is_some() {
                 let entities_with_component: HashSet<&Entity> = components_of_type.unwrap().keys().collect();
                 result.retain(|x| entities_with_component.contains(x));
+            } else {
+                result.clear();
             }
         }
         
@@ -114,68 +116,105 @@ mod test {
     use ecs_derive::Component;
 
     use super::{World, Component, Query};
-    use std::any::Any;
+    use std::{any::Any};
 
     #[derive(Component)]
-    struct StringComponent{
+    struct ClassComponent{
         name: String
     }
 
     #[derive(Component)]
-    struct IntComponent{
+    struct IdComponent{
         number: u32
     }
+
+    #[derive(Component)]
+    struct MarkerComponent{}
     
-    #[test]
-    fn test_single_result(){
-        // Given
+    fn world_setup() -> World{
         let mut world = World::new();
 
         let first_entity = world.new_entity();
-        world.add_component(first_entity, StringComponent{name: String::from("First Entity")});
+        world.add_component(first_entity, ClassComponent{name: String::from("First Entity")});
         
         let second_entity = world.new_entity();
-        world.add_component(second_entity, StringComponent{name: String::from("Second Entity")});
-        world.add_component(second_entity, IntComponent{number: 1138});
-        
-        // When
-        let actual = world.query(Query::new().with::<StringComponent>().with::<IntComponent>());
-        
-        // Then
-        assert_eq!(1, actual.len());
-        for result_entity in actual {
-            assert_eq!(String::from("Second Entity"), world.get_component::<StringComponent>(result_entity).expect("").name);
-            assert_eq!(1138, world.get_component::<IntComponent>(result_entity).expect("").number);
-        }
+        world.add_component(second_entity, ClassComponent{name: String::from("Second Entity")});
+        world.add_component(second_entity, IdComponent{number: 1138});
+        world
     }
 
     #[test]
-    fn test_multiple_result(){
+    fn test_query_unused_component(){
         // Given
         let mut world = World::new();
 
-        let first_entity = world.new_entity();
-        world.add_component(first_entity, StringComponent{name: String::from("First Entity")});
-        
-        let second_entity = world.new_entity();
-        world.add_component(second_entity, StringComponent{name: String::from("Second Entity")});
-        world.add_component(second_entity, IntComponent{number: 1138});            
+        let negative_entity = world.new_entity();
         
         // When
-        let actual = world.query(Query::new().with::<StringComponent>());
+        let actual = world.query(Query::new().with::<MarkerComponent>());
         
         // Then
-        assert_eq!(2, actual.len());
-        for result_entity in actual {
-            let int_component = world.get_component::<IntComponent>(result_entity);
-
-            if int_component.is_some() {
-                assert_eq!(String::from("Second Entity"), world.get_component::<StringComponent>(result_entity).expect("").name);
-                assert_eq!(1138, int_component.expect("").number);
-            } else {
-                assert_eq!(String::from("First Entity"), world.get_component::<StringComponent>(result_entity).expect("").name);
-            }
-        }
+        assert_eq!(None, actual.get(&negative_entity));
     }
 
+    #[test]
+    fn test_result_singleton(){
+        // Given
+        let mut world = World::new();
+
+        let negative_entity = world.new_entity();
+        
+        let positive_entity = world.new_entity();
+        world.add_component(positive_entity, MarkerComponent{});
+        
+        // When
+        let actual = world.query(Query::new().with::<MarkerComponent>());
+        
+        // Then
+        assert_eq!(&positive_entity, actual.get(&positive_entity).unwrap());
+        assert_eq!(None, actual.get(&negative_entity));
+    }
+
+    #[test]
+    fn test_result_set(){
+        // Given
+        let mut world = World::new();
+
+        let negative_entity = world.new_entity();
+        
+        let positive_entity_1 = world.new_entity();
+        world.add_component(positive_entity_1, MarkerComponent{});
+
+        let positive_entity_2 = world.new_entity();
+        world.add_component(positive_entity_2, MarkerComponent{});
+        
+        // When
+        let actual = world.query(Query::new().with::<MarkerComponent>());
+        
+        // Then
+        assert_eq!(&positive_entity_1, actual.get(&positive_entity_1).unwrap());
+        assert_eq!(&positive_entity_2, actual.get(&positive_entity_2).unwrap());
+        assert_eq!(None, actual.get(&negative_entity));
+    }
+
+    #[test]
+    fn test_query_no_results() {
+        // Given
+        let mut world = World::new();
+
+        let negative_entity_1 = world.new_entity();
+        world.add_component(negative_entity_1, MarkerComponent{});
+        world.add_component(negative_entity_1, IdComponent{number: 1});
+        
+        let negative_entity_2 = world.new_entity();
+        world.add_component(negative_entity_2, MarkerComponent{});
+        world.add_component(negative_entity_2, ClassComponent{name: String::from("")});
+        
+        // When
+        let actual = world.query(Query::new().with::<IdComponent>().with::<ClassComponent>());
+        
+        // Then
+        assert_eq!(None, actual.get(&negative_entity_1));
+        assert_eq!(None, actual.get(&negative_entity_2));
+    }
 }
