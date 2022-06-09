@@ -128,14 +128,14 @@ mod test {
     use ecs_derive::Component;
 
     use super::{Component, Query, World};
-    use std::any::Any;
+    use std::{any::Any};
 
     #[derive(Component)]
     struct ClassComponent {
         name: String,
     }
 
-    #[derive(Component)]
+    #[derive(Component, Debug, PartialEq, Eq)]
     struct IdComponent {
         number: u32,
     }
@@ -257,5 +257,22 @@ mod test {
 
         // Then
         assert_eq!(new_id, actual.unwrap().number);
+    }
+
+    #[test]
+    fn test_delete_component() {
+            // Given
+            let mut world = World::new();
+
+            let positive_entity = world.new_entity();
+            let id = 1;
+            world.add_component(positive_entity, IdComponent{number: id});
+    
+            // When
+            world.remove_component::<IdComponent>(positive_entity);
+            let actual = world.get_component::<IdComponent>(positive_entity);
+    
+            // Then
+            assert_eq!(None, actual);
     }
 }
