@@ -143,28 +143,6 @@ mod test {
     #[derive(Component)]
     struct MarkerComponent {}
 
-    fn world_setup() -> World {
-        let mut world = World::new();
-
-        let first_entity = world.new_entity();
-        world.add_component(
-            first_entity,
-            ClassComponent {
-                name: String::from("First Entity"),
-            },
-        );
-
-        let second_entity = world.new_entity();
-        world.add_component(
-            second_entity,
-            ClassComponent {
-                name: String::from("Second Entity"),
-            },
-        );
-        world.add_component(second_entity, IdComponent { number: 1138 });
-        world
-    }
-
     #[test]
     fn test_query_unused_component() {
         // Given
