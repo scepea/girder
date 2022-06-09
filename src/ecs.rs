@@ -222,4 +222,40 @@ mod test {
         assert_eq!(None, actual.get(&negative_entity_1));
         assert_eq!(None, actual.get(&negative_entity_2));
     }
+
+    #[test]
+    fn test_read_component() {
+        // Given
+        let mut world = World::new();
+
+        let positive_entity = world.new_entity();
+        let id = 1138;
+        world.add_component(positive_entity, IdComponent{number: id});
+
+
+        // When
+        let actual = world.get_component::<IdComponent>(positive_entity);
+
+        // Then
+        assert_eq!(id, actual.unwrap().number);
+    }
+
+    #[test]
+    fn test_update_component() {
+        // Given
+        let mut world = World::new();
+
+        let positive_entity = world.new_entity();
+        let old_id = 1138;
+        world.add_component(positive_entity, IdComponent{number: old_id});
+
+        let new_id = 8311;
+        
+        // When
+        world.get_component_mut::<IdComponent>(positive_entity).unwrap().number = new_id;
+        let actual = world.get_component::<IdComponent>(positive_entity);
+
+        // Then
+        assert_eq!(new_id, actual.unwrap().number);
+    }
 }
