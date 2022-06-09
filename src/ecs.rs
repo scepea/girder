@@ -83,11 +83,7 @@ impl World {
     }
 
     pub fn remove_component<T: Component>(&mut self, entity: Entity) {
-        self.remove_component_by_typeId(entity, &TypeId::of::<T>());
-    }
-
-    fn remove_component_by_typeId(&mut self, entity: Entity, component_type: &TypeId) {
-        let x = self.components.get_mut(component_type);
+        let x = self.components.get_mut(&TypeId::of::<T>());
         if x.is_some() {
             x.unwrap().remove(&entity);
         }
