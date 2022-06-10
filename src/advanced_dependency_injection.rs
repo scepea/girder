@@ -1,8 +1,8 @@
-pub fn injector(echo: String) -> String{
-	implementation(echo, another_module::hello_dependency, another_module::echo_dependency)
+pub fn service_function(echo: String) -> String{
+	service_function_implementation(echo, another_module::hello_dependency, another_module::echo_dependency)
 }
 
-fn implementation(echo: String, first_dependency: fn() -> String, second_dependency: fn(String) -> String) -> String{
+fn service_function_implementation(echo: String, first_dependency: fn() -> String, second_dependency: fn(String) -> String) -> String{
 	let mut result = String::from("");
     result.push_str(&first_dependency());
     result.push_str(", ");
@@ -15,7 +15,7 @@ fn implementation(echo: String, first_dependency: fn() -> String, second_depende
 #[test]
 fn unit_test() {
     let echo = String::from("Test");
-    let result: String = implementation(
+    let result: String = service_function_implementation(
         echo,
         || -> String {String::from("Unit")}, 
         |x| -> String {x}
@@ -24,12 +24,14 @@ fn unit_test() {
 }
 
 mod another_module {
-    use crate::advanced_dependency_injection::injector;
+    use crate::advanced_dependency_injection::service_function;
 
     #[cfg(test)]
     #[test]
     fn integration_test() {
-        let result: String = injector(String::from("World"));
+        use crate::advanced_dependency_injection::service_function_implementation;
+
+        let result: String = service_function(String::from("World"));
         assert_eq!("Hello, World!", result);
     }
 
