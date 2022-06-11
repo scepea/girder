@@ -133,18 +133,21 @@ mod test {
     use super::{Component, Query, World};
     use std::{any::Any};
 
-    #[derive(Component)]
-    struct ClassComponent {
-        name: String,
-    }
+    #[derive(Component, Debug, PartialEq, Eq)]
+    struct LabelComponent {}
+
+    #[derive(Component, Debug, PartialEq, Eq)]
+    struct MarkerComponent {}
 
     #[derive(Component, Debug, PartialEq, Eq)]
     struct IdComponent {
         number: u32,
     }
 
-    #[derive(Component)]
-    struct MarkerComponent {}
+    #[derive(Component, Debug, PartialEq, Eq)]
+    struct CountComponent {
+        number: u32,
+    }
 
     #[test]
     fn test_query_unused_component() {
@@ -154,7 +157,7 @@ mod test {
         let negative_entity = world.new_entity();
 
         // When
-        let actual = world.query(Query::new().with::<MarkerComponent>());
+        let actual = world.query(Query::new().with::<LabelComponent>());
 
         // Then
         assert_eq!(None, actual.get(&negative_entity));
@@ -168,10 +171,10 @@ mod test {
         let negative_entity = world.new_entity();
 
         let positive_entity = world.new_entity();
-        world.add_component(positive_entity, MarkerComponent {});
+        world.add_component(positive_entity, LabelComponent {});
 
         // When
-        let actual = world.query(Query::new().with::<MarkerComponent>());
+        let actual = world.query(Query::new().with::<LabelComponent>());
 
         // Then
         assert_eq!(&positive_entity, actual.get(&positive_entity).unwrap());
@@ -186,13 +189,13 @@ mod test {
         let negative_entity = world.new_entity();
 
         let positive_entity_1 = world.new_entity();
-        world.add_component(positive_entity_1, MarkerComponent {});
+        world.add_component(positive_entity_1, LabelComponent {});
 
         let positive_entity_2 = world.new_entity();
-        world.add_component(positive_entity_2, MarkerComponent {});
+        world.add_component(positive_entity_2, LabelComponent {});
 
         // When
-        let actual = world.query(Query::new().with::<MarkerComponent>());
+        let actual = world.query(Query::new().with::<LabelComponent>());
 
         // Then
         assert_eq!(&positive_entity_1, actual.get(&positive_entity_1).unwrap());
@@ -206,20 +209,15 @@ mod test {
         let mut world = World::new();
 
         let negative_entity_1 = world.new_entity();
-        world.add_component(negative_entity_1, MarkerComponent {});
+        world.add_component(negative_entity_1, LabelComponent {});
         world.add_component(negative_entity_1, IdComponent { number: 1 });
 
         let negative_entity_2 = world.new_entity();
+        world.add_component(negative_entity_2, LabelComponent {});
         world.add_component(negative_entity_2, MarkerComponent {});
-        world.add_component(
-            negative_entity_2,
-            ClassComponent {
-                name: String::from(""),
-            },
-        );
 
         // When
-        let actual = world.query(Query::new().with::<IdComponent>().with::<ClassComponent>());
+        let actual = world.query(Query::new().with::<IdComponent>().with::<MarkerComponent>());
 
         // Then
         assert_eq!(None, actual.get(&negative_entity_1));
@@ -231,16 +229,17 @@ mod test {
         // Given
         let mut world = World::new();
 
-        let positive_entity = world.new_entity();
-        let id = 1138;
-        world.add_component(positive_entity, IdComponent{number: id});
-
+        let entity = world.new_entity();
+        let entity_id = 24601;
+        world.add_component(entity, IdComponent{number: entity_id});
 
         // When
-        let actual = world.get_component::<IdComponent>(positive_entity);
+        let positive_result = world.get_component::<IdComponent>(entity);
+        let negative_result = world.get_component::<LabelComponent>(entity);
 
         // Then
-        assert_eq!(id, actual.unwrap().number);
+        assert_eq!(entity_id, positive_result.unwrap().number);
+        assert_eq!(None, negative_result);
     }
 
     #[test]
@@ -249,56 +248,63 @@ mod test {
         let mut world = World::new();
 
         let positive_entity = world.new_entity();
-        let old_id = 1138;
-        world.add_component(positive_entity, IdComponent{number: old_id});
+        let old_value = 24601;
+        world.add_component(positive_entity, IdComponent{number: old_value});
+        world.add_component(positive_entity, CountComponent{number: old_value});
 
-        let new_id = 8311;
+        let new_value = 1138;
         
         // When
-        world.get_component_mut::<IdComponent>(positive_entity).unwrap().number = new_id;
-        let actual = world.get_component::<IdComponent>(positive_entity);
+        world.get_component_mut::<IdComponent>(positive_entity).unwrap().number = new_value;
+        let postive_result = world.get_component::<IdComponent>(positive_entity);
+        let negative_result = world.get_component::<CountComponent>(positive_entity);
 
         // Then
-        assert_eq!(new_id, actual.unwrap().number);
+        assert_eq!(new_value, postive_result.unwrap().number);
+        assert_eq!(old_value, negative_result.unwrap().number);
     }
 
     #[test]
     fn test_delete_component() {
-            // Given
-            let mut world = World::new();
+        // Given
+        let mut world = World::new();
 
-            let positive_entity = world.new_entity();
-            let id = 1;
-            world.add_component(positive_entity, IdComponent{number: id});
-    
-            // When
-            world.remove_component::<IdComponent>(positive_entity);
-            let actual = world.get_component::<IdComponent>(positive_entity);
-    
-            // Then
-            assert_eq!(None, actual);
+        let entity = world.new_entity();
+        let id = 24601;
+        world.add_component(entity, LabelComponent{});
+        world.add_component(entity, IdComponent{number: id});
+
+        // When
+        world.remove_component::<LabelComponent>(entity);
+        let positive_result = world.get_component::<LabelComponent>(entity);
+        let negative_result = world.get_component::<IdComponent>(entity);
+
+        // Then
+        assert_eq!(None, positive_result);
+        assert_eq!(id, negative_result.unwrap().number);
+
     }
 
     #[test]
     fn test_delete_entity() {
-            // Given
-            let mut world = World::new();
+        // Given
+        let mut world = World::new();
 
-            let positive_entity = world.new_entity();
-            world.add_component(positive_entity, IdComponent{number: 1});
+        let positive_entity = world.new_entity();
+        world.add_component(positive_entity, IdComponent{number: 24601});
 
-            let negative_entity = world.new_entity();
-            let expected_id = 2;
-            world.add_component(negative_entity, IdComponent{number: expected_id});
-    
-            // When
-            world.remove_entity(positive_entity);
-            let positive_actual = world.get_component::<IdComponent>(positive_entity);
-            let negative_actual = world.get_component::<IdComponent>(negative_entity);
+        let negative_entity = world.new_entity();
+        let expected_id = 1138;
+        world.add_component(negative_entity, IdComponent{number: expected_id});
 
-            // Then
-            assert_eq!(world.entities.len(), 1);
-            assert_eq!(None, positive_actual);
-            assert_eq!(expected_id, negative_actual.unwrap().number);
+        // When
+        world.remove_entity(positive_entity);
+        let positive_actual = world.get_component::<IdComponent>(positive_entity);
+        let negative_actual = world.get_component::<IdComponent>(negative_entity);
+
+        // Then
+        assert_eq!(world.entities.len(), 1);
+        assert_eq!(None, positive_actual);
+        assert_eq!(expected_id, negative_actual.unwrap().number);
     }
 }
