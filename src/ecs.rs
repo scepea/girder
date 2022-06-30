@@ -12,12 +12,12 @@ pub trait Component: 'static {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-struct Entity {
+pub struct Entity {
     id: usize,
 }
 
 impl Entity {
-    fn new() -> Entity {
+    pub fn new() -> Entity {
         static COUNTER: AtomicUsize = AtomicUsize::new(1);
         Entity {
             id: COUNTER.fetch_add(1, Ordering::Relaxed),
@@ -25,7 +25,7 @@ impl Entity {
     }
 }
 
-struct World {
+pub struct World {
     entities: HashSet<Entity>,
     components: HashMap<TypeId, HashMap<Entity, Box<dyn Component>>>,
 }
@@ -109,7 +109,7 @@ impl World {
     }
 }
 
-struct Query {
+pub struct Query {
     include: HashSet<TypeId>,
 }
 
